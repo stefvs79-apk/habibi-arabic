@@ -34,20 +34,23 @@ jobs:
         with:
           python-version: "3.11"
 
-      # 3. Run the Habibi ETL & FSRS engine to verify and export habibiSQLite.db
+      # 3. Build & verify pre-seeded Habibi SQLite database (28 Letters + 200 Words)
       - name: Generate & Verify Pre-Seeded Habibi SQLite Database (28 Letters + 200 Words)
         run: |
           mkdir -p www/assets/databases
-          python3 database/habibi_etl_and_fsrs_engine.py
-          python3 -c "
+          python3 - << 'PY'
           import sys
           sys.path.insert(0, 'database')
           import habibi_etl_and_fsrs_engine as etl
           p = etl.ArabicCurriculumPipeline('www/assets/databases/habibiSQLite.db', 'database/habibi_schema.sql')
           p.initialize_schema()
           p.seed_reference_curriculum()
+          cur = p.conn.cursor()
+          letters = cur.execute('SELECT COUNT(*) FROM arabic_letters').fetchone()[0]
+          lemmas = cur.execute('SELECT COUNT(*) FROM lexical_entries').fetchone()[0]
+          print(f'Verified habibiSQLite.db: {letters} letters, {lemmas} lexical entries')
           p.conn.close()
-          "
+          PY
           ls -lh www/assets/databases/habibiSQLite.db
 
       # 4. Set up Node.js 20 for Capacitor CLI & plugins
