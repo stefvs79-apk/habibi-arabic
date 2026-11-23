@@ -1,0 +1,10 @@
+{
+  "name": "Habibi (حَبِيبِي) — Learn Arabic",
+  "short_name": "Habibi",
+  "description": "Interactive Arabic language learning app with visual script morphing, root-pattern matrix, FSRS spaced repetition, and diglossic speaking.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a"
+}

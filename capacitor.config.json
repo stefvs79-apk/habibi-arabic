@@ -1,0 +1,16 @@
+{
+  "appId": "com.habibi.arabic",
+  "appName": "Habibi",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorSQLite": {
+      "iosDatabaseLocation": "Library/CapacitorDatabase",
+      "iosIsEncryption": false,
+      "androidIsEncryption": false
+    }
+  }
+}

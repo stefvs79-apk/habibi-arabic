@@ -1,0 +1,21 @@
+{
+  "name": "habibi-arabic-android",
+  "version": "1.0.0",
+  "description": "Habibi (\u062d\u064e\u0628\u0650\u064a\u0628\u0650\u064a) Arabic Language Teaching App \u2014 Android Capacitor Project",
+  "private": true,
+  "scripts": {
+    "seed:db": "python3 database/habibi_etl_and_fsrs_engine.py",
+    "android:init": "npx cap add android && npx cap copy android && npx cap sync android",
+    "android:sync": "npx cap copy android && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:apk": "npx cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor-community/sqlite": "^6.0.1",
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}
