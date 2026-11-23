@@ -1,0 +1,133 @@
+# =============================================================================
+# Habibi (حَبِيبِي) — Automated Android APK CI/CD Pipeline
+# File Location: .github/workflows/build-android-apk.yml
+#
+# References:
+#   - Capacitor Android Docs: https://capacitorjs.com/docs/android
+#   - GitHub Actions setup-java@v4: https://github.com/actions/setup-java
+#   - Ionic / Capacitor GitHub Actions Guide: https://ionic.io/docs/tutorials/integrations/github-actions/build-android
+#   - Capacitor Community SQLite: https://github.com/capacitor-community/sqlite
+# =============================================================================
+
+name: Build Habibi Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - "release/**"
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    name: Compile & Upload Habibi APK (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Python 3.11 to build/verify the pre-seeded Habibi SQLite database
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3. Run the Habibi ETL & FSRS engine to verify and export habibiSQLite.db
+      - name: Generate & Verify Pre-Seeded Habibi SQLite Database (28 Letters + 200 Words)
+        run: |
+          mkdir -p www/assets/databases
+          python3 database/habibi_etl_and_fsrs_engine.py
+          python3 -c "
+          import sys
+          sys.path.insert(0, 'database')
+          import habibi_etl_and_fsrs_engine as etl
+          p = etl.ArabicCurriculumPipeline('www/assets/databases/habibiSQLite.db', 'database/habibi_schema.sql')
+          p.initialize_schema()
+          p.seed_reference_curriculum()
+          p.conn.close()
+          "
+          ls -lh www/assets/databases/habibiSQLite.db
+
+      # 4. Set up Node.js 20 for Capacitor CLI & plugins
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      # 5. Set up JDK 21 (Temurin) with Gradle dependency caching
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      # 6. Install Capacitor & SQLite dependencies and sync Android native project
+      - name: Initialize & Sync Capacitor Android Platform
+        run: |
+          npm install
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap copy android
+          npx cap sync android
+
+      # 7. Compile installable Debug APK via Gradle
+      - name: Build Debug APK (assembleDebug)
+        working-directory: ./android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
+          ls -lh app/build/outputs/apk/debug/
+
+      # 8. Rename APK to Habibi-v1.0.0-debug.apk for clean mobile download
+      - name: Prepare Installable Habibi APK Artifact
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/Habibi-Arabic-debug.apk
+
+      # 9. Upload the installable Debug APK to the GitHub Actions run summary
+      - name: Upload Installable Habibi Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Habibi-Android-Debug-APK
+          path: |
+            android/app/build/outputs/apk/debug/Habibi-Arabic-debug.apk
+            android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # 10. Optional Signed Release APK (Runs automatically if ANDROID_KEYSTORE_BASE64 secret is set)
+      - name: Build Signed Release APK (Optional)
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: ./android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release-keystore.jks
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$(pwd)/release-keystore.jks" \
+            -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+
+      - name: Clean up decoded Keystore
+        if: ${{ always() && secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: rm -f android/release-keystore.jks
+
+      - name: Upload Signed Release APK
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Habibi-Android-Signed-Release-APK
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 90
