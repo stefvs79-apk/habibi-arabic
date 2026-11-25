@@ -1,12 +1,10 @@
 # =============================================================================
-# Habibi (حَبِيبِي) — Automated Android APK CI/CD Pipeline
-# File Location: .github/workflows/build-android-apk.yml
-#
-# References:
-#   - Capacitor Android Docs: https://capacitorjs.com/docs/android
-#   - GitHub Actions setup-java@v4: https://github.com/actions/setup-java
-#   - Ionic / Capacitor GitHub Actions Guide: https://ionic.io/docs/tutorials/integrations/github-actions/build-android
-#   - Capacitor Community SQLite: https://github.com/capacitor-community/sqlite
+# Habibi (حَبِيبِي) — Automated Android APK CI/CD Pipeline (v2.0)
+# Includes:
+#   - Pre-seeded 320-word Habibi SQLite Database (@capacitor-community/sqlite)
+#   - Native Android Arabic Text-to-Speech (@capacitor-community/text-to-speech)
+#   - Official Google ML Kit On-Device Translation (@capacitor-mlkit/translation)
+#   - Custom Habibi Adaptive App Icons & Splash Screen (@capacitor/assets)
 # =============================================================================
 
 name: Build Habibi Android APK
@@ -24,18 +22,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Check out the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Python 3.11 to build/verify the pre-seeded Habibi SQLite database
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # 3. Build & verify pre-seeded Habibi SQLite database (28 Letters + 200 Words)
-      - name: Generate & Verify Pre-Seeded Habibi SQLite Database (28 Letters + 200 Words)
+      - name: Generate & Verify Pre-Seeded Habibi SQLite Database (28 Letters + 320 Words)
         run: |
           mkdir -p www/assets/databases
           python3 - << 'PY'
@@ -48,35 +43,44 @@ jobs:
           cur = p.conn.cursor()
           letters = cur.execute('SELECT COUNT(*) FROM arabic_letters').fetchone()[0]
           lemmas = cur.execute('SELECT COUNT(*) FROM lexical_entries').fetchone()[0]
-          print(f'Verified habibiSQLite.db: {letters} letters, {lemmas} lexical entries')
+          variants = cur.execute('SELECT COUNT(*) FROM dialect_variants').fetchone()[0]
+          print(f'Verified habibiSQLite.db: {letters} letters, {lemmas} lexical entries, {variants} dialect rows')
           p.conn.close()
           PY
           ls -lh www/assets/databases/habibiSQLite.db
 
-      # 4. Set up Node.js 20 for Capacitor CLI & plugins
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20.x"
 
-      # 5. Set up JDK 21 (Temurin)
       - name: Set up JDK 21 (Temurin)
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "21"
 
-      # 6. Install Capacitor & SQLite dependencies and sync Android native project
-      - name: Initialize & Sync Capacitor Android Platform
+      - name: Initialize Capacitor Android, Icons/Splash & Native Plugins (ML Kit + TTS + SQLite)
         run: |
           npm install
           if [ ! -d "android" ]; then
             npx cap add android
           fi
+          if [ -d "assets" ]; then
+            npx --yes @capacitor/assets@3.0.5 generate --android || echo "Continuing with default icon fallback"
+          fi
           npx cap copy android
           npx cap sync android
+          python3 -c "
+          import pathlib
+          m = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+          t = m.read_text()
+          perm = '<uses-permission android:name=\"android.permission.RECORD_AUDIO\" />'
+          if 'RECORD_AUDIO' not in t:
+              t = t.replace('<application', perm + '\n    <application', 1)
+              m.write_text(t)
+          "
 
-      # 7. Compile installable Debug APK via Gradle
       - name: Build Debug APK (assembleDebug)
         working-directory: ./android
         run: |
@@ -84,12 +88,10 @@ jobs:
           ./gradlew assembleDebug --stacktrace
           ls -lh app/build/outputs/apk/debug/
 
-      # 8. Rename APK to Habibi-Arabic-debug.apk for clean mobile download
       - name: Prepare Installable Habibi APK Artifact
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/Habibi-Arabic-debug.apk
 
-      # 9. Upload the installable Debug APK to the GitHub Actions run summary
       - name: Upload Installable Habibi Debug APK
         uses: actions/upload-artifact@v4
         with:
