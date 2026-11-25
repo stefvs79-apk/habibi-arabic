@@ -1,10 +1,22 @@
 {
-  "name": "Habibi (حَبِيبِي) — Learn Arabic",
+  "name": "Habibi (حَبِيبِي) — Definitive Arabic Tutor",
   "short_name": "Habibi",
-  "description": "Interactive Arabic language learning app with visual script morphing, root-pattern matrix, FSRS spaced repetition, and diglossic speaking.",
+  "description": "Stage-monitored Arabic tutor with Google Wallet-style pass deck, 28 letters, 320 CAMeL words, FSRS, Google ML Kit offline translation, and native Android TTS.",
   "start_url": "/index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a"
+  "background_color": "#070b14",
+  "theme_color": "#070b14",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
