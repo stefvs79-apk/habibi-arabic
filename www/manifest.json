@@ -1,12 +1,12 @@
 {
-  "name": "Habibi (حَبِيبِي) — Definitive Arabic Tutor",
+  "name": "Habibi (حَبِيبِي) — Arabic Language Journey",
   "short_name": "Habibi",
-  "description": "Stage-monitored Arabic tutor with Google Wallet-style pass deck, 28 letters, 320 CAMeL words, FSRS, Google ML Kit offline translation, and native Android TTS.",
+  "description": "Tactile beginner-to-conversational Arabic app with 28 letters, 10 root builders, 320 tridialectal words, Smart Memory (FSRS), roleplays, and offline phrase translation.",
   "start_url": "/index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#070b14",
-  "theme_color": "#070b14",
+  "background_color": "#130e26",
+  "theme_color": "#130e26",
   "icons": [
     {
       "src": "icons/icon-192.png",

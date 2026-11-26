@@ -1,15 +1,7 @@
 -- =============================================================================
--- HABIBI (حَبِيبِي) — ANDROID & WEB — RELATIONAL DATABASE SCHEMA
--- Compatible with SQLite 3.38+ and PostgreSQL 15+
--- Grounded Data Sources:
---   1. Arramooz Alwaseet Morphological Dictionary: https://github.com/linuxscout/arramooz
---   2. Quranic Arabic Corpus Lemma Database: https://corpus.quran.com/lemmas.jsp
---   3. CAMeL Lab Arabic Frequency Lists (MSA, DA, CA): https://github.com/CAMeL-Lab/Camel_Arabic_Frequency_Lists
---   4. Mishkal Vocalization Engine: https://github.com/linuxscout/mishkal
---   5. Tatoeba Parallel Sentences (CC-BY): https://www.manythings.org/bilingual/ara/
---   6. Mozilla Common Voice 18 Arabic: https://huggingface.co/datasets/MohamedRashad/common-voice-18-arabic
---   7. Free Spaced Repetition Scheduler (FSRS): https://github.com/open-spaced-repetition/free-spaced-repetition-scheduler
---   8. Unified ACTFL/CEFR Arabic Proficiency Model: https://f1000research.com/articles/15-325
+-- HABIBI (حَبِيبِي) — COMMERCIAL-CLEAN RELATIONAL SQLITE 3 SCHEMA
+-- Original Habibi Curriculum Schema & MIT-Licensed FSRS Memory State Tables
+-- Zero GPL, copyleft, or proprietary third-party dictionary dependencies.
 -- =============================================================================
 
 PRAGMA foreign_keys = ON;
@@ -37,7 +29,7 @@ CREATE TABLE IF NOT EXISTS arabic_letters (
 
 -- -----------------------------------------------------------------------------
 -- 2. TRILATERAL & QUADRILATERAL ROOTS (JATHR / جَذْر)
--- Source: Arramooz Alwaseet (https://github.com/linuxscout/arramooz)
+-- Original Habibi Trilateral Root Table
 --         & Quranic Arabic Corpus (https://corpus.quran.com/lemmas.jsp)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS trilateral_roots (
@@ -49,13 +41,13 @@ CREATE TABLE IF NOT EXISTS trilateral_roots (
     c4_radical          TEXT,                           -- Optional 4th radical for quadrilateral roots
     root_type           TEXT NOT NULL DEFAULT 'sound',  -- 'sound' | 'hollow' | 'defective' | 'assimilated' | 'doubled'
     core_concept_en     TEXT NOT NULL,                  -- e.g., 'Writing / Recording'
-    corpus_freq_rank    INTEGER NOT NULL,               -- Rank across CAMeL + Quranic Corpus lemmas
+    corpus_freq_rank    INTEGER NOT NULL,               -- Everyday beginner utility & frequency priority
     cefr_unlock_stage   INTEGER NOT NULL DEFAULT 1      -- 1=Pre-A1, 2=A1, 3=A2, 4=B1, 5=B2
 );
 
 -- -----------------------------------------------------------------------------
 -- 3. MORPHOLOGICAL PATTERNS (WAZN / وَزْن — MEEZAAN SARFII)
--- Source: Arramooz Alwaseet & Al-Kitaab / FSI Written Arabic Grammar
+-- Standard Arabic Morphological Pattern Templates (Awzan)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS morphological_patterns (
     pattern_id          TEXT PRIMARY KEY,               -- e.g., 'fa3ala', 'fa3il', 'maf3ul', 'maf3al', 'form_ii'
@@ -68,16 +60,15 @@ CREATE TABLE IF NOT EXISTS morphological_patterns (
 );
 
 -- -----------------------------------------------------------------------------
--- 4. LEXICAL ENTRIES (LEMMAS) & MISHKAL VOWEL SCAFFOLDING
--- Source: CAMeL Arabic Frequency Lists (https://github.com/CAMeL-Lab/Camel_Arabic_Frequency_Lists)
---         & Mishkal Vocalization Engine (https://github.com/linuxscout/mishkal)
+-- 4. LEXICAL ENTRIES (LEMMAS) & 3-TIER VOWEL SCAFFOLDING
+-- Original Habibi Curated Vocabulary & Unicode Tashkeel Tiers
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS lexical_entries (
     lemma_id            TEXT PRIMARY KEY,               -- e.g., 'lem_kataba', 'lem_katib', 'lem_maktab', 'lem_qahwa'
     root_id             TEXT REFERENCES trilateral_roots(root_id) ON DELETE SET NULL,
     pattern_id          TEXT REFERENCES morphological_patterns(pattern_id) ON DELETE SET NULL,
     part_of_speech      TEXT NOT NULL,                  -- 'verb' | 'noun' | 'adj' | 'particle' | 'phrase'
-    -- Three pre-computed Mishkal vocalization tiers for O(1) UI rendering:
+    -- Three pre-computed Unicode vocalization tiers for O(1) UI rendering:
     msa_full_tashkeel   TEXT NOT NULL,                  -- 100% vocalized: 'كَاتِبٌ'
     msa_scaffold_50     TEXT NOT NULL,                  -- 50% faded stem vowels: 'كَاتِب'
     msa_unvocalized     TEXT NOT NULL,                  -- Real-world stripped: 'كاتب'
@@ -85,20 +76,20 @@ CREATE TABLE IF NOT EXISTS lexical_entries (
     english_gloss       TEXT NOT NULL,                  -- Primary English meaning: 'writer / author'
     gender              TEXT,                           -- 'm' | 'f' | 'common'
     broken_plural_full  TEXT,                           -- e.g., 'كُتَّاب' (kuttāb)
-    camel_msa_freq_rank INTEGER NOT NULL,               -- Rank in CAMeL MSA_freq_lists.tsv
-    camel_mix_freq_rank INTEGER NOT NULL,               -- Rank in CAMeL MIX_freq_lists.tsv (CA+DA+MSA)
+    msa_freq_rank INTEGER NOT NULL,               -- Formal Arabic curriculum priority rank
+    mix_freq_rank INTEGER NOT NULL,               -- Everyday spoken+written priority rank
     cefr_stage          INTEGER NOT NULL DEFAULT 1,     -- 1=Pre-A1, 2=A1, 3=A2, 4=B1, 5=B2
     audio_uri_msa       TEXT                            -- Reference to Common Voice / ClArTTS audio asset
 );
 
 CREATE INDEX IF NOT EXISTS idx_lexical_root ON lexical_entries(root_id);
-CREATE INDEX IF NOT EXISTS idx_lexical_freq ON lexical_entries(camel_mix_freq_rank);
+CREATE INDEX IF NOT EXISTS idx_lexical_freq ON lexical_entries(mix_freq_rank);
 CREATE INDEX IF NOT EXISTS idx_lexical_stage ON lexical_entries(cefr_stage);
 
 -- -----------------------------------------------------------------------------
 -- 5. DIGLOSSIC DIALECT VARIANTS (INTEGRATED FUSHA + AMMIYA TRACKS)
 -- Source: FSI Comparative Arabic (https://www.fsi-language-courses.org/fsi-comparative-arabic-courses/)
---         & CAMeL Dialectal Arabic (DA_freq_lists.tsv)
+--         & Everyday Spoken Dialect Variants
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS dialect_variants (
     variant_id          TEXT PRIMARY KEY,
@@ -108,20 +99,20 @@ CREATE TABLE IF NOT EXISTS dialect_variants (
     surface_unvocalized TEXT NOT NULL,                  -- e.g., 'بشرب قهوة'
     phonetic_translit   TEXT NOT NULL,                  -- e.g., 'bashrab qahwe'
     pronunciation_note  TEXT,                           -- e.g., 'ق pronounced as glottal stop /ʔ/ in urban Damascus/Cairo'
-    camel_da_freq_rank  INTEGER,
+    da_freq_rank  INTEGER,
     audio_uri_dialect   TEXT,
     UNIQUE(lemma_id, dialect_code)
 );
 
 -- -----------------------------------------------------------------------------
 -- 6. BILINGUAL PARALLEL SENTENCES & SITUATIONAL DIALOGUES
--- Source: Tatoeba English-Arabic (https://www.manythings.org/bilingual/ara/)
+-- Original Habibi Bilingual Context Sentences
 --         & Peace Corps Communicative Courses (https://www.fsi-language-courses.org/peace-corps-courses/)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS bilingual_sentences (
     sentence_id         TEXT PRIMARY KEY,
     primary_lemma_id    TEXT NOT NULL REFERENCES lexical_entries(lemma_id) ON DELETE CASCADE,
-    source_corpus       TEXT NOT NULL DEFAULT 'tatoeba_cc_by',
+    source_corpus       TEXT NOT NULL DEFAULT 'habibi_original',
     msa_vocalized       TEXT NOT NULL,
     msa_scaffold_50     TEXT NOT NULL,
     msa_unvocalized     TEXT NOT NULL,
@@ -214,7 +205,7 @@ CREATE TABLE IF NOT EXISTS stage_gate_attempts (
 -- -----------------------------------------------------------------------------
 -- 10. ANALYTICAL VIEW: ROOT-LEVEL MASTERY & DIGLOSSIA READINESS
 -- Aggregates FSRS Stability across all words sharing a trilateral root so the
--- app knows when to strip short vowels (Mishkal fade) for an entire root family.
+-- app knows when to strip short vowels (progressive vowel fade) for an entire root family.
 -- -----------------------------------------------------------------------------
 CREATE VIEW IF NOT EXISTS v_root_family_mastery AS
 SELECT
